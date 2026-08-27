@@ -1,0 +1,17 @@
+# ==============================================================================
+# WireGuard Configuration — Branch B (Endpoint 10.50.0.2)
+# WARNING: NEVER commit actual private keys to Git.
+# ==============================================================================
+
+[Interface]
+Address = 10.50.0.2/24
+ListenPort = 51820
+PrivateKey = <BRANCH_B_PRIVATE_KEY_GENERATE_WITH_WG_GENKEY>
+SaveConfig = false
+
+[Peer]
+# Branch A Peer
+PublicKey = <BRANCH_A_PUBLIC_KEY>
+AllowedIPs = 10.50.0.1/32
+Endpoint = branch-a.vpn.internal:51820
+PersistentKeepalive = 25

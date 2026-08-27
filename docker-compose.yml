@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: f9l3_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-f9l3_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-f9l3_password_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-f9l3_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-f9l3_user} -d ${POSTGRES_DB:-f9l3_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - f9l3_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    container_name: f9l3_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - f9l3_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/frontend.Dockerfile
+    container_name: f9l3_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - f9l3_network
+
+networks:
+  f9l3_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
