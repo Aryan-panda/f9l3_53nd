@@ -6,6 +6,7 @@ from fastapi import (
     File,
     Form,
     Query,
+    Response,
     UploadFile,
     status,
 )
@@ -80,3 +81,26 @@ async def get_transfer_details(
         user=current_user,
     )
     return TransferRead.model_validate(transfer)
+
+
+@router.get("/{transfer_id}/download")
+async def download_transfer(
+    transfer_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Download decrypted and verified file payload (AEAD tag + SHA-256 verified)."""
+    service = TransferService()
+    plaintext, filename = await service.process_download_and_verify(
+        db=db,
+        transfer_id=transfer_id,
+        user=current_user,
+    )
+    return Response(
+        content=plaintext,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(plaintext)),
+        },
+    )

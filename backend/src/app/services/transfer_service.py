@@ -1,4 +1,7 @@
+import shutil
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -8,8 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.exceptions import (
     AuthorizationError,
+    CryptoError,
+    DecryptionError,
+    IntegrityError,
     NotFoundError,
     TransferNotFoundError,
+    TransferStateError,
     ValidationError,
 )
 from app.crypto.aead import AES256GCMCipher, build_canonical_aad
@@ -18,15 +25,23 @@ from app.crypto.envelope import (
     CURRENT_PROTOCOL_VERSION,
     TransferEnvelope,
     pack_envelope,
+    unpack_envelope,
 )
-from app.crypto.hashing import compute_buffer_sha256
+from app.crypto.hashing import (
+    compute_buffer_sha256,
+    verify_sha256_digest,
+)
 from app.crypto.nonce import generate_nonce
 from app.models.key_reference import KeyReference
 from app.models.transfer import Transfer
 from app.models.user import User
 from app.security.authorization import UserRole, UserStatus, can_access_transfer
 from app.services.key_service import KeyService
-from app.storage.paths import get_encrypted_payload_path, sanitize_filename
+from app.storage.paths import (
+    get_encrypted_payload_path,
+    get_quarantine_payload_path,
+    sanitize_filename,
+)
 from app.transfer.replay import transfer_replay_detector
 from app.transfer.state_machine import TransferState
 
@@ -150,6 +165,125 @@ class TransferService:
         await db.refresh(transfer)
 
         return transfer
+
+    async def process_download_and_verify(
+        self,
+        db: AsyncSession,
+        transfer_id: UUID,
+        user: User,
+    ) -> tuple[bytes, str]:
+        """Decrypt, verify integrity, enforce state transitions, and deliver plaintext.
+
+        Args:
+            db: AsyncSession instance.
+            transfer_id: UUID of transfer to download.
+            user: Authenticated caller.
+
+        Returns:
+            tuple[bytes, str]: (decrypted_plaintext_bytes, filename)
+
+        Raises:
+            TransferNotFoundError: If transfer does not exist.
+            AuthorizationError: If caller lacks permission.
+            DecryptionError: If AEAD authentication fails.
+            IntegrityError: If post-decryption SHA-256 digest mismatches.
+        """
+        # 1. Fetch Transfer
+        stmt = select(Transfer).where(Transfer.id == transfer_id)
+        res = await db.execute(stmt)
+        transfer = res.scalar_one_or_none()
+
+        if transfer is None:
+            raise TransferNotFoundError(str(transfer_id))
+
+        # 2. Complete Mediation Authorization Check
+        if not can_access_transfer(
+            user_id=user.id,
+            user_role=user.role,
+            sender_id=transfer.sender_id,
+            recipient_id=transfer.recipient_id,
+        ):
+            raise AuthorizationError("Access denied: Not authorized to download this transfer.")
+
+        # 3. Check State
+        if transfer.state == TransferState.QUARANTINED.value:
+            raise TransferStateError("Transfer is quarantined due to suspected data tampering.")
+
+        # 4. Fetch Key Reference
+        key_stmt = select(KeyReference).where(KeyReference.transfer_id == transfer_id)
+        key_res = await db.execute(key_stmt)
+        key_ref = key_res.scalar_one_or_none()
+        if key_ref is None:
+            raise CryptoError("Key reference missing for encrypted transfer.")
+
+        # 5. Read Encrypted Storage File
+        storage_path = Path(transfer.storage_path)
+        if not storage_path.exists():
+            raise NotFoundError("Encrypted payload file is missing from storage.")
+
+        with open(storage_path, "rb") as f:
+            encrypted_data = f.read()
+
+        # 6. Unwrap DEK
+        dek = self._key_service.unwrap_transfer_key(
+            wrapped_dek=key_ref.wrapped_dek,
+            key_version=key_ref.key_version,
+        )
+
+        # 7. Unpack Envelope & Decrypt Payload
+        try:
+            envelope = unpack_envelope(encrypted_data)
+            cipher = AES256GCMCipher(dek)
+            plaintext = cipher.decrypt(
+                ciphertext=envelope.ciphertext,
+                tag=envelope.tag,
+                nonce=envelope.nonce,
+                aad=envelope.aad,
+            )
+        except Exception as e:
+            # Quarantine payload on AEAD authentication failure
+            await self._quarantine_transfer(db, transfer, storage_path)
+            raise DecryptionError(
+                "AEAD tag authentication failed: Payload was modified or corrupted."
+            ) from e
+
+        # 8. Post-Decryption SHA-256 Verification
+        computed_sha256 = compute_buffer_sha256(plaintext)
+        if not verify_sha256_digest(computed_sha256, transfer.original_sha256):
+            await self._quarantine_transfer(db, transfer, storage_path)
+            raise IntegrityError(
+                f"File integrity mismatch: expected SHA-256 '{transfer.original_sha256}', "
+                f"got '{computed_sha256}'."
+            )
+
+        # 9. Update Transfer State to COMPLETED
+        transfer.state = TransferState.COMPLETED.value
+        transfer.decrypted_sha256 = computed_sha256
+        transfer.completed_at = datetime.now(UTC)
+        await db.flush()
+        await db.refresh(transfer)
+
+        return plaintext, transfer.filename
+
+    async def _quarantine_transfer(
+        self,
+        db: AsyncSession,
+        transfer: Transfer,
+        storage_path: Path,
+    ) -> None:
+        """Isolate a tampered transfer to quarantine storage and update its state."""
+        transfer.state = TransferState.QUARANTINED.value
+        quarantine_dest = get_quarantine_payload_path(transfer.id)
+
+        if storage_path.exists():
+            try:
+                shutil.copy2(storage_path, quarantine_dest)
+                transfer.quarantine_path = str(quarantine_dest)
+            except OSError:
+                pass
+
+        await db.flush()
+        await db.refresh(transfer)
 
     @staticmethod
     async def list_transfers_for_user(
