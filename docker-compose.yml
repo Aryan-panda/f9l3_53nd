@@ -1,6 +1,5 @@
-version: "3.8"
-
 services:
+
   postgres:
     image: postgres:16-alpine
     container_name: f9l3_postgres
@@ -22,16 +21,51 @@ services:
     networks:
       - f9l3_network
 
-  backend:
+  backend-branch-a:
     build:
       context: .
       dockerfile: infra/docker/backend.Dockerfile
-    container_name: f9l3_backend
+    container_name: f9l3_backend_branch_a
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      ENVIRONMENT: development
+      BRANCH_ID: branch_a
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-f9l3_user}:${POSTGRES_PASSWORD:-f9l3_password_dev_only}@postgres:5432/${POSTGRES_DB:-f9l3_db}
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_minimum_32_characters_long_12345}
+      MASTER_KEY_HEX: ${MASTER_KEY_HEX:-000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f}
+      WIREGUARD_LOCAL_IP: "10.13.37.1"
+      WIREGUARD_PEER_IP: "10.13.37.2"
     ports:
       - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - f9l3_network
+
+  backend-branch-b:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    container_name: f9l3_backend_branch_b
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      BRANCH_ID: branch_b
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-f9l3_user}:${POSTGRES_PASSWORD:-f9l3_password_dev_only}@postgres:5432/${POSTGRES_DB:-f9l3_db}
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_minimum_32_characters_long_12345}
+      MASTER_KEY_HEX: ${MASTER_KEY_HEX:-000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f}
+      WIREGUARD_LOCAL_IP: "10.13.37.2"
+      WIREGUARD_PEER_IP: "10.13.37.1"
+    ports:
+      - "8001:8000"
     volumes:
       - ./storage:/app/storage
     depends_on:
@@ -54,7 +88,7 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      backend:
+      backend-branch-a:
         condition: service_healthy
     networks:
       - f9l3_network

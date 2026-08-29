@@ -14,6 +14,7 @@ help:
 	@echo "  make lint           Check code quality and style (ruff + eslint)"
 	@echo "  make format         Auto-format backend and frontend code"
 	@echo "  make typecheck      Run static type checking (mypy + tsc)"
+	@echo "  make healthcheck    Run live and readiness health probes"
 	@echo "  make docker-up      Start containerized infrastructure"
 	@echo "  make docker-down    Stop containerized infrastructure"
 	@echo "  make clean          Clean cache, build artifacts, and temp files"
@@ -55,11 +56,15 @@ typecheck:
 	@cd frontend && npm run typecheck
 
 
+healthcheck:
+	@bash scripts/healthcheck.sh
+
 docker-up:
-	@docker compose up -d
+	@bash scripts/docker-up.sh
 
 docker-down:
-	@docker compose down
+	@bash scripts/docker-down.sh
+
 
 clean:
 	@bash scripts/reset-dev-environment.sh
