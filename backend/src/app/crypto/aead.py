@@ -1,4 +1,3 @@
-
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -112,7 +111,6 @@ class AES256GCMCipher:
                 f"Authentication tag length mismatch: expected {TAG_SIZE_BYTES} bytes, "
                 f"got {len(tag)}."
             )
-
 
         combined = ciphertext + tag
         try:

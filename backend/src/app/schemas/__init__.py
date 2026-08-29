@@ -1,9 +1,27 @@
 """Pydantic schemas package."""
 
+from app.schemas.auth import LoginRequest, LoginResponse, SessionInfo
 from app.schemas.key_reference import (
     KeyReferenceBase,
     KeyReferenceCreate,
     KeyReferenceRead,
 )
+from app.schemas.user import (
+    UserBase,
+    UserCreate,
+    UserRead,
+    UserUpdateStatus,
+)
 
-__all__ = ["KeyReferenceBase", "KeyReferenceCreate", "KeyReferenceRead"]
+__all__ = [
+    "KeyReferenceBase",
+    "KeyReferenceCreate",
+    "KeyReferenceRead",
+    "UserBase",
+    "UserCreate",
+    "UserRead",
+    "UserUpdateStatus",
+    "LoginRequest",
+    "LoginResponse",
+    "SessionInfo",
+]

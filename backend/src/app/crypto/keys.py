@@ -21,7 +21,6 @@ class KeyLifecycleState(StrEnum):
     REVOKED = "REVOKED"
 
 
-
 def zeroize_bytes(buffer: bytearray) -> None:
     """Securely overwrite a mutable bytearray in RAM with zeros.
 
@@ -128,7 +127,6 @@ class KeyManager:
         self._keys: dict[str, bytes] = {primary_version: primary_kek}
         self._states: dict[str, KeyLifecycleState] = {primary_version: KeyLifecycleState.ACTIVE}
         self._primary_version: str = primary_version
-
 
     @property
     def primary_version(self) -> str:

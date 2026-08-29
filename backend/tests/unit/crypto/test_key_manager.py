@@ -73,7 +73,6 @@ def test_key_manager_revoked_key_rejection() -> None:
     )
 
     with pytest.raises(CryptoError, match="revoked and cannot be used"):
-
         km.get_kek("compromised_v0")
 
 

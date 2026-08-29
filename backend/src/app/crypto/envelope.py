@@ -111,7 +111,6 @@ def unpack_envelope(data: bytes) -> TransferEnvelope:
             f"available {len(data) - offset}."
         )
 
-
     ciphertext = data[offset : offset + ct_len]
 
     return TransferEnvelope(

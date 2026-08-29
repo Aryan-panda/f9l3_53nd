@@ -47,6 +47,28 @@ class ValidationError(AppError):
         super().__init__(message, code="VALIDATION_FAILED", status_code=422, details=details)
 
 
+class NotFoundError(AppError):
+    """Raised when a requested resource is not found."""
+
+    def __init__(
+        self,
+        message: str = "Resource not found.",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, code="NOT_FOUND", status_code=404, details=details)
+
+
+class ConflictError(AppError):
+    """Raised when an operation conflicts with existing resource state or uniqueness."""
+
+    def __init__(
+        self,
+        message: str = "Resource conflict.",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, code="CONFLICT", status_code=409, details=details)
+
+
 class TransferNotFoundError(AppError):
     """Raised when a requested transfer record cannot be located."""
 
@@ -90,7 +112,6 @@ class IntegrityError(AppError):
         message: str = "File integrity verification failed (SHA-256 mismatch).",
     ) -> None:
         super().__init__(message, code="INTEGRITY_MISMATCH", status_code=400)
-
 
 
 class ReplayError(AppError):

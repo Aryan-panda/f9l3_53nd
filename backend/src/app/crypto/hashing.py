@@ -79,4 +79,3 @@ def assert_sha256_integrity(computed_digest: str, expected_digest: str) -> None:
             f"File integrity mismatch: expected SHA-256 '{expected_digest}', "
             f"got '{computed_digest}'."
         )
-

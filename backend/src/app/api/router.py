@@ -1,6 +1,9 @@
 from fastapi import APIRouter
 
+from app.api.routes import auth, users
+
 api_router = APIRouter()
 
-# Note: Route modules (auth, users, transfers, files, admin) will be plugged in
-# sequentially in Phases 7, 8, 9, 10, 12 as defined in the architectural blueprint.
+# Plug in feature routers
+api_router.include_router(auth.router)
+api_router.include_router(users.router)
