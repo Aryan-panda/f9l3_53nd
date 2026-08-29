@@ -56,15 +56,17 @@ def compute_record_hash(
     target_str = str(target_resource).strip() if target_resource else "none"
     details_str = canonicalize_details(details)
 
-    payload = "|".join([
-        str(event_id).strip(),
-        ts_norm,
-        str(event_type).strip(),
-        actor_str,
-        target_str,
-        details_str,
-        str(prev_record_hash).strip().lower(),
-    ]).encode("utf-8")
+    payload = "|".join(
+        [
+            str(event_id).strip(),
+            ts_norm,
+            str(event_type).strip(),
+            actor_str,
+            target_str,
+            details_str,
+            str(prev_record_hash).strip().lower(),
+        ]
+    ).encode("utf-8")
 
     return hmac.new(key, payload, hashlib.sha256).hexdigest().lower()
 
