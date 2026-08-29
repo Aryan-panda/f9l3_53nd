@@ -1,9 +1,10 @@
 """SQLAlchemy database models for f9l3_53nd."""
 
+from app.models.audit_event import AuditEvent
 from app.models.base import Base
 from app.models.key_reference import KeyReference
 from app.models.session import Session
 from app.models.transfer import Transfer
 from app.models.user import User
 
-__all__ = ["Base", "User", "Session", "KeyReference", "Transfer"]
+__all__ = ["Base", "User", "Session", "KeyReference", "Transfer", "AuditEvent"]

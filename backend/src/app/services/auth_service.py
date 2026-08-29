@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.events import AuditEventType, AuditSeverity
 from app.core.exceptions import AuthenticationError, AuthorizationError
 from app.models.session import Session
 from app.models.user import User
@@ -13,6 +14,7 @@ from app.security.sessions import (
     generate_session_token,
     hash_session_token,
 )
+from app.services.audit_service import AuditService
 
 # Constant dummy hash for timing attack mitigation when username is not found
 DUMMY_HASH = (
@@ -29,6 +31,7 @@ class AuthService:
         db: AsyncSession,
         username: str,
         password: str,
+        ip_address: str | None = None,
     ) -> tuple[User, str]:
         """Authenticate user credentials and establish a new server-side session.
 
@@ -39,6 +42,7 @@ class AuthService:
             db: AsyncSession instance.
             username: Plaintext username.
             password: User-provided plaintext password.
+            ip_address: Client IP address.
 
         Returns:
             tuple[User, str]: (User_model, raw_session_token_for_cookie)
@@ -56,13 +60,40 @@ class AuthService:
         if user is None:
             # Execute dummy verify to ensure constant time execution
             verify_password(password, DUMMY_HASH)
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.AUTH_LOGIN_FAILURE,
+                severity=AuditSeverity.WARNING,
+                actor_id=None,
+                ip_address=ip_address,
+                target_resource=username,
+                details={"reason": "User not found"},
+            )
             raise AuthenticationError("Invalid username or password.")
 
         if not verify_password(password, user.password_hash):
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.AUTH_LOGIN_FAILURE,
+                severity=AuditSeverity.WARNING,
+                actor_id=user.id,
+                ip_address=ip_address,
+                target_resource=username,
+                details={"reason": "Invalid password"},
+            )
             raise AuthenticationError("Invalid username or password.")
 
         # 3. Check account status
         if user.status != UserStatus.ACTIVE.value:
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.AUTHORIZATION_DENIED,
+                severity=AuditSeverity.WARNING,
+                actor_id=user.id,
+                ip_address=ip_address,
+                target_resource=username,
+                details={"reason": f"Account status is {user.status}"},
+            )
             raise AuthorizationError(
                 f"Account is {user.status.lower()}. Please contact the administrator."
             )
@@ -81,8 +112,19 @@ class AuthService:
 
         # Update last login timestamp
         user.last_login_at = datetime.now(UTC)
-        await db.flush()
 
+        # 5. Emit successful login audit event
+        await AuditService.emit_event(
+            db=db,
+            event_type=AuditEventType.AUTH_LOGIN_SUCCESS,
+            severity=AuditSeverity.INFO,
+            actor_id=user.id,
+            ip_address=ip_address,
+            target_resource=str(user.id),
+            details={"username": user.username, "role": user.role},
+        )
+
+        await db.flush()
         return user, raw_token
 
     @staticmethod
@@ -156,5 +198,15 @@ class AuthService:
             return False
 
         session.revoked_at = datetime.now(UTC)
+
+        await AuditService.emit_event(
+            db=db,
+            event_type=AuditEventType.AUTH_LOGOUT,
+            severity=AuditSeverity.INFO,
+            actor_id=session.user_id,
+            target_resource=str(session.id),
+            details={"message": "Session revoked on logout"},
+        )
+
         await db.flush()
         return True

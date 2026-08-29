@@ -1,5 +1,10 @@
 """Pydantic schemas package."""
 
+from app.schemas.audit import (
+    AuditChainVerificationResponse,
+    AuditEventListResponse,
+    AuditEventRead,
+)
 from app.schemas.auth import LoginRequest, LoginResponse, SessionInfo
 from app.schemas.key_reference import (
     KeyReferenceBase,
@@ -34,4 +39,7 @@ __all__ = [
     "TransferCreate",
     "TransferRead",
     "TransferListResponse",
+    "AuditEventRead",
+    "AuditEventListResponse",
+    "AuditChainVerificationResponse",
 ]

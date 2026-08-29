@@ -8,6 +8,7 @@ from fastapi import UploadFile
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.events import AuditEventType, AuditSeverity
 from app.core.config import get_settings
 from app.core.exceptions import (
     AuthorizationError,
@@ -36,6 +37,7 @@ from app.models.key_reference import KeyReference
 from app.models.transfer import Transfer
 from app.models.user import User
 from app.security.authorization import UserRole, UserStatus, can_access_transfer
+from app.services.audit_service import AuditService
 from app.services.key_service import KeyService
 from app.storage.paths import (
     get_encrypted_payload_path,
@@ -59,21 +61,7 @@ class TransferService:
         recipient_id: UUID,
         file: UploadFile,
     ) -> Transfer:
-        """Process file upload: sanitize, hash, encrypt with AES-256-GCM, wrap key, and store.
-
-        Args:
-            db: AsyncSession instance.
-            sender: Authenticated User uploading the file.
-            recipient_id: UUID of designated recipient.
-            file: UploadFile instance.
-
-        Returns:
-            Transfer: Persisted transfer record in ENCRYPTED state.
-
-        Raises:
-            ValidationError: On missing file or size limit violation.
-            NotFoundError: If recipient user does not exist.
-        """
+        """Process file upload: sanitize, hash, encrypt with AES-256-GCM, wrap key, and store."""
         settings = get_settings()
 
         # 1. Validate Recipient
@@ -161,9 +149,24 @@ class TransferService:
             storage_path=str(storage_file_path),
         )
         db.add(transfer)
+
+        # 14. Emit Audit Event
+        await AuditService.emit_event(
+            db=db,
+            event_type=AuditEventType.TRANSFER_UPLOADED,
+            severity=AuditSeverity.INFO,
+            actor_id=sender.id,
+            target_resource=str(transfer_id),
+            details={
+                "filename": safe_filename,
+                "file_size": file_size,
+                "recipient_id": str(recipient_id),
+                "sha256": original_sha256,
+            },
+        )
+
         await db.flush()
         await db.refresh(transfer)
-
         return transfer
 
     async def process_download_and_verify(
@@ -172,22 +175,7 @@ class TransferService:
         transfer_id: UUID,
         user: User,
     ) -> tuple[bytes, str]:
-        """Decrypt, verify integrity, enforce state transitions, and deliver plaintext.
-
-        Args:
-            db: AsyncSession instance.
-            transfer_id: UUID of transfer to download.
-            user: Authenticated caller.
-
-        Returns:
-            tuple[bytes, str]: (decrypted_plaintext_bytes, filename)
-
-        Raises:
-            TransferNotFoundError: If transfer does not exist.
-            AuthorizationError: If caller lacks permission.
-            DecryptionError: If AEAD authentication fails.
-            IntegrityError: If post-decryption SHA-256 digest mismatches.
-        """
+        """Decrypt, verify integrity, enforce state transitions, and deliver plaintext."""
         # 1. Fetch Transfer
         stmt = select(Transfer).where(Transfer.id == transfer_id)
         res = await db.execute(stmt)
@@ -203,6 +191,14 @@ class TransferService:
             sender_id=transfer.sender_id,
             recipient_id=transfer.recipient_id,
         ):
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.AUTHORIZATION_DENIED,
+                severity=AuditSeverity.WARNING,
+                actor_id=user.id,
+                target_resource=str(transfer_id),
+                details={"action": "download", "reason": "Unauthorized access attempt"},
+            )
             raise AuthorizationError("Access denied: Not authorized to download this transfer.")
 
         # 3. Check State
@@ -241,8 +237,16 @@ class TransferService:
                 aad=envelope.aad,
             )
         except Exception as e:
-            # Quarantine payload on AEAD authentication failure
-            await self._quarantine_transfer(db, transfer, storage_path)
+            # Emit DECRYPTION_FAILURE and Quarantine
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.DECRYPTION_FAILURE,
+                severity=AuditSeverity.CRITICAL,
+                actor_id=user.id,
+                target_resource=str(transfer_id),
+                details={"error": "AEAD tag authentication failed / tampered payload"},
+            )
+            await self._quarantine_transfer(db, transfer, storage_path, user_id=user.id)
             raise DecryptionError(
                 "AEAD tag authentication failed: Payload was modified or corrupted."
             ) from e
@@ -250,7 +254,18 @@ class TransferService:
         # 8. Post-Decryption SHA-256 Verification
         computed_sha256 = compute_buffer_sha256(plaintext)
         if not verify_sha256_digest(computed_sha256, transfer.original_sha256):
-            await self._quarantine_transfer(db, transfer, storage_path)
+            await AuditService.emit_event(
+                db=db,
+                event_type=AuditEventType.INTEGRITY_MISMATCH,
+                severity=AuditSeverity.CRITICAL,
+                actor_id=user.id,
+                target_resource=str(transfer_id),
+                details={
+                    "expected_sha256": transfer.original_sha256,
+                    "computed_sha256": computed_sha256,
+                },
+            )
+            await self._quarantine_transfer(db, transfer, storage_path, user_id=user.id)
             raise IntegrityError(
                 f"File integrity mismatch: expected SHA-256 '{transfer.original_sha256}', "
                 f"got '{computed_sha256}'."
@@ -260,9 +275,19 @@ class TransferService:
         transfer.state = TransferState.COMPLETED.value
         transfer.decrypted_sha256 = computed_sha256
         transfer.completed_at = datetime.now(UTC)
+
+        # 10. Emit Transfer Downloaded Audit Event
+        await AuditService.emit_event(
+            db=db,
+            event_type=AuditEventType.TRANSFER_DOWNLOADED,
+            severity=AuditSeverity.INFO,
+            actor_id=user.id,
+            target_resource=str(transfer_id),
+            details={"filename": transfer.filename, "sha256": computed_sha256},
+        )
+
         await db.flush()
         await db.refresh(transfer)
-
         return plaintext, transfer.filename
 
     async def _quarantine_transfer(
@@ -270,6 +295,7 @@ class TransferService:
         db: AsyncSession,
         transfer: Transfer,
         storage_path: Path,
+        user_id: UUID | None = None,
     ) -> None:
         """Isolate a tampered transfer to quarantine storage and update its state."""
         transfer.state = TransferState.QUARANTINED.value
@@ -281,6 +307,18 @@ class TransferService:
                 transfer.quarantine_path = str(quarantine_dest)
             except OSError:
                 pass
+
+        await AuditService.emit_event(
+            db=db,
+            event_type=AuditEventType.PAYLOAD_QUARANTINED,
+            severity=AuditSeverity.CRITICAL,
+            actor_id=user_id,
+            target_resource=str(transfer.id),
+            details={
+                "original_storage_path": transfer.storage_path,
+                "quarantine_path": transfer.quarantine_path,
+            },
+        )
 
         await db.flush()
         await db.refresh(transfer)

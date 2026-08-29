@@ -1,0 +1,36 @@
+from enum import StrEnum
+
+
+class AuditEventType(StrEnum):
+    """Standardized taxonomy of security and operational audit events."""
+
+    # Authentication & IAM
+    AUTH_LOGIN_SUCCESS = "AUTH_LOGIN_SUCCESS"
+    AUTH_LOGIN_FAILURE = "AUTH_LOGIN_FAILURE"
+    AUTH_LOGOUT = "AUTH_LOGOUT"
+    USER_STATUS_CHANGE = "USER_STATUS_CHANGE"
+
+    # Transfers & Data Pipeline
+    TRANSFER_UPLOADED = "TRANSFER_UPLOADED"
+    TRANSFER_DOWNLOADED = "TRANSFER_DOWNLOADED"
+    TRANSFER_DECRYPTED = "TRANSFER_DECRYPTED"
+
+    # Key Management
+    CRYPTO_KEY_ROTATED = "CRYPTO_KEY_ROTATED"
+
+    # Security & Incident Detection
+    DECRYPTION_FAILURE = "DECRYPTION_FAILURE"
+    INTEGRITY_MISMATCH = "INTEGRITY_MISMATCH"
+    PAYLOAD_QUARANTINED = "PAYLOAD_QUARANTINED"
+    REPLAY_ATTACK_BLOCKED = "REPLAY_ATTACK_BLOCKED"
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    AUTHORIZATION_DENIED = "AUTHORIZATION_DENIED"
+
+
+class AuditSeverity(StrEnum):
+    """Severity classification for audit events."""
+
+    INFO = "INFO"
+    WARNING = "WARNING"
+    SECURITY_ALERT = "SECURITY_ALERT"
+    CRITICAL = "CRITICAL"
