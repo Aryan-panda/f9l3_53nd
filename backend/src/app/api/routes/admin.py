@@ -11,7 +11,9 @@ from app.schemas.audit import (
     AuditEventListResponse,
     AuditEventRead,
 )
+from app.schemas.network import TunnelStatusRead
 from app.services.audit_service import AuditService
+from app.services.network_service import NetworkService
 
 router = APIRouter(prefix="/admin", tags=["Administration & Audit"])
 
@@ -56,10 +58,17 @@ async def verify_audit_chain(
     chain (Admin only).
     """
     is_valid, count, broken_idx, msg = await AuditService.verify_chain_integrity(db)
-
     return AuditChainVerificationResponse(
         is_valid=is_valid,
         total_records=count,
         broken_record_index=broken_idx,
         message=msg,
     )
+
+
+@router.get("/network/status", response_model=TunnelStatusRead)
+async def get_network_tunnel_status(
+    _: User = Depends(get_current_admin_user),
+) -> TunnelStatusRead:
+    """Get real-time WireGuard VPN point-to-point tunnel status (Admin only)."""
+    return NetworkService.get_tunnel_status()

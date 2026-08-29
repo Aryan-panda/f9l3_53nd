@@ -11,6 +11,7 @@ from app.schemas.key_reference import (
     KeyReferenceCreate,
     KeyReferenceRead,
 )
+from app.schemas.network import TunnelStatusRead
 from app.schemas.transfer import (
     TransferBase,
     TransferCreate,
@@ -42,4 +43,5 @@ __all__ = [
     "AuditEventRead",
     "AuditEventListResponse",
     "AuditChainVerificationResponse",
+    "TunnelStatusRead",
 ]
