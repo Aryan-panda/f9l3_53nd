@@ -2,13 +2,14 @@
 # f9l3_53nd — Developer Automation Makefile
 # ==============================================================================
 
-.PHONY: help setup secrets dev test security-test lint format typecheck clean docker-up docker-down
+.PHONY: help setup secrets dev test security-test lint format typecheck clean docker-up docker-down demo
 
 help:
 	@echo "f9l3_53nd — Management Commands:"
 	@echo "  make setup          Initialize python venv and install frontend dependencies"
 	@echo "  make secrets        Generate secure development secrets (.env)"
 	@echo "  make dev            Run local backend and frontend dev servers"
+	@echo "  make demo           Run automated end-to-end security demonstration"
 	@echo "  make test           Run all backend and frontend unit tests"
 	@echo "  make security-test  Run adversarial and security regression test suites"
 	@echo "  make lint           Check code quality and style (ruff + eslint)"
@@ -30,6 +31,9 @@ dev:
 	@trap 'kill 0' EXIT; \
 	(cd backend && .venv/bin/uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000) & \
 	(cd frontend && npm run dev)
+
+demo:
+	@bash scripts/demo.sh
 
 test:
 	@bash scripts/test.sh
