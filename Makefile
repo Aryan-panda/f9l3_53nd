@@ -38,21 +38,22 @@ security-test:
 
 lint:
 	@echo "==> Linting backend with ruff..."
-	@cd backend && (.venv/bin/ruff check . || ruff check .)
+	@cd backend && .venv/bin/ruff check .
 	@echo "==> Linting frontend with eslint..."
 	@cd frontend && npm run lint
 
 format:
 	@echo "==> Formatting backend..."
-	@cd backend && (.venv/bin/ruff format . || ruff format .)
+	@cd backend && .venv/bin/ruff format .
 	@echo "==> Formatting frontend..."
 	@cd frontend && npm run format || true
 
 typecheck:
 	@echo "==> Typechecking backend with mypy..."
-	@cd backend && (.venv/bin/mypy src || mypy src)
+	@cd backend && .venv/bin/mypy src
 	@echo "==> Typechecking frontend with tsc..."
 	@cd frontend && npm run typecheck
+
 
 docker-up:
 	@docker compose up -d

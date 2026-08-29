@@ -2,6 +2,7 @@
 
 from app.services.auth_service import AuthService
 from app.services.key_service import KeyService
+from app.services.transfer_service import TransferService
 from app.services.user_service import UserService
 
-__all__ = ["AuthService", "KeyService", "UserService"]
+__all__ = ["AuthService", "KeyService", "TransferService", "UserService"]

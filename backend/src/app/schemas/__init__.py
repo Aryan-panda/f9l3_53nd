@@ -6,6 +6,12 @@ from app.schemas.key_reference import (
     KeyReferenceCreate,
     KeyReferenceRead,
 )
+from app.schemas.transfer import (
+    TransferBase,
+    TransferCreate,
+    TransferListResponse,
+    TransferRead,
+)
 from app.schemas.user import (
     UserBase,
     UserCreate,
@@ -24,4 +30,8 @@ __all__ = [
     "LoginRequest",
     "LoginResponse",
     "SessionInfo",
+    "TransferBase",
+    "TransferCreate",
+    "TransferRead",
+    "TransferListResponse",
 ]
