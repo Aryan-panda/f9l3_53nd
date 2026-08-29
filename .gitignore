@@ -8,6 +8,10 @@
 *.pfx
 secrets/
 
+# WireGuard generated configurations (contain private keys)
+infra/wireguard/**/wg0.conf
+!infra/wireguard/**/*.conf.example
+
 # Python / Backend
 __pycache__/
 *.py[cod]
@@ -56,6 +60,8 @@ storage/temporary/*
 !storage/temporary/.gitkeep
 storage/quarantine/*
 !storage/quarantine/.gitkeep
+storage/wireguard_status.env
+backend/storage/
 
 # Operating System & IDEs
 .DS_Store
