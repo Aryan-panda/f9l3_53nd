@@ -7,7 +7,8 @@
 [![KDF: Argon2id](https://img.shields.io/badge/KDF-Argon2id-blueviolet.svg)](docs/security-model.md)
 [![Network: WireGuard](https://img.shields.io/badge/Network-WireGuard-red.svg)](docs/architecture.md)
 [![Audit: HMAC-SHA256](https://img.shields.io/badge/Audit-HMAC--SHA256-orange.svg)](docs/runbooks/audit-forensics-guide.md)
-[![Tests: 115 Passed](https://img.shields.io/badge/Tests-115%20Passed-brightgreen.svg)](docs/final-verification-report.md)
+[![Tests: 117 Passed](https://img.shields.io/badge/Tests-117%20Passed-brightgreen.svg)](docs/final-verification-report.md)
+
 
 `f9l3_53nd` is an enterprise-grade, defense-in-depth secure file transfer platform designed to simulate auditable, authenticated, and encrypted file transfer between two distinct branch offices (Branch A and Branch B) across an untrusted network.
 
@@ -74,8 +75,9 @@
 # 1. Setup virtualenv, npm modules, and developer secrets
 make setup && make secrets
 
-# 2. Run full automated verification suite (115 tests + linters + types)
+# 2. Run full automated verification suite (117 tests + linters + types)
 make test && make lint
+
 
 # 3. Launch full multi-branch Docker container cluster
 make docker-up

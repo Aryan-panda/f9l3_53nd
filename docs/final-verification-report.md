@@ -12,7 +12,7 @@
 `f9l3_53nd` has completed exhaustive multi-tier verification and adversarial security testing. All cryptographic controls, protocol invariants, fail-closed boundaries, authentication guards, and audit log chains have been verified through automated test execution and static analysis.
 
 ### Summary Metrics:
-- **Total Automated Backend Tests**: **115 passing tests** across 4 categories (Unit, API, Integration, Adversarial).
+- **Total Automated Backend Tests**: **117 passing tests** across 4 categories (Unit, API, Integration, Adversarial).
 - **Backend Linting (Ruff)**: **100% compliant (0 errors, 0 warnings)**.
 - **Backend Static Typing (Mypy Strict)**: **58 source files checked, 0 errors**.
 - **Frontend Type Checking (TypeScript Strict)**: **0 errors**.
@@ -40,40 +40,40 @@
 
 ```text
 ============================= test session starts ==============================
-collected 115 items
+collected 117 items
 
 tests/api/test_admin_audit_api.py ..                                     [  1%]
 tests/api/test_auth_api.py .......                                       [  7%]
 tests/api/test_download_api.py ..                                        [  9%]
 tests/api/test_network_status_api.py .                                   [ 10%]
-tests/api/test_transfers_api.py ...                                      [ 13%]
+tests/api/test_transfers_api.py ...                                      [ 12%]
 tests/api/test_users_api.py ....                                         [ 16%]
-tests/integration/test_e2e_network_and_resilience.py ..                  [ 18%]
+tests/integration/test_e2e_network_and_resilience.py ..                  [ 17%]
 tests/integration/test_e2e_transfers.py .....                            [ 22%]
-tests/security/test_adversarial_suite.py .........                       [ 30%]
-tests/security/test_audit_tampering.py .                                 [ 31%]
+tests/security/test_adversarial_suite.py .........                       [ 29%]
+tests/security/test_audit_tampering.py .                                 [ 30%]
 tests/security/test_auth_attacks.py ...                                  [ 33%]
 tests/security/test_key_lifecycle.py ..                                  [ 35%]
-tests/security/test_network_attacks.py ..                                [ 37%]
-tests/security/test_quarantine_attacks.py ..                             [ 39%]
+tests/security/test_network_attacks.py ..                                [ 36%]
+tests/security/test_quarantine_attacks.py ..                             [ 38%]
 tests/security/test_transfer_attacks.py ..                               [ 40%]
-tests/unit/audit/test_audit_chain.py ....                                [ 44%]
-tests/unit/crypto/test_aead.py .........                                 [ 52%]
-tests/unit/crypto/test_envelope.py ...                                   [ 54%]
-tests/unit/crypto/test_hashing.py .....                                  [ 59%]
-tests/unit/crypto/test_key_manager.py .....                              [ 63%]
-tests/unit/crypto/test_keys.py .....                                     [ 67%]
-tests/unit/crypto/test_nonce.py ....                                     [ 71%]
-tests/unit/security/test_password.py .....                               [ 75%]
-tests/unit/security/test_rate_limit.py ...                               [ 78%]
-tests/unit/security/test_sessions.py ...                                 [ 80%]
+tests/unit/audit/test_audit_chain.py ....                                [ 43%]
+tests/unit/crypto/test_aead.py .........                                 [ 51%]
+tests/unit/crypto/test_envelope.py ...                                   [ 53%]
+tests/unit/crypto/test_hashing.py .....                                  [ 58%]
+tests/unit/crypto/test_key_manager.py .....                              [ 62%]
+tests/unit/crypto/test_keys.py .....                                     [ 66%]
+tests/unit/crypto/test_nonce.py ....                                     [ 70%]
+tests/unit/security/test_password.py ......                              [ 75%]
+tests/unit/security/test_rate_limit.py ....                              [ 78%]
+tests/unit/security/test_sessions.py ...                                 [ 81%]
 tests/unit/test_cli.py .........                                         [ 88%]
 tests/unit/test_foundation.py ....                                       [ 92%]
 tests/unit/test_wireguard_config.py ...                                  [ 94%]
 tests/unit/transfer/test_replay.py ...                                   [ 97%]
 tests/unit/transfer/test_state_machine.py ...                            [100%]
 
-====================== 115 passed, 0 failed in 28.43s =======================
+====================== 117 passed, 0 failed in 26.27s =======================
 ```
 
 ---
