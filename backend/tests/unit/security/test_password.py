@@ -1,6 +1,8 @@
 import pytest
+from pydantic import ValidationError
 
 from app.core.exceptions import AuthenticationError
+from app.schemas.user import UserCreate
 from app.security.password import hash_password, needs_rehash, verify_password
 
 
@@ -46,3 +48,32 @@ def test_argon2id_needs_rehash() -> None:
     """Freshly generated hashes using current parameters should not need rehash."""
     pwd_hash = hash_password("SecurePassword123!")
     assert needs_rehash(pwd_hash) is False
+
+
+@pytest.mark.unit
+def test_user_create_password_complexity_enforcement() -> None:
+    """Ensure UserCreate rejects passwords lacking uppercase, lowercase, numbers, or symbols."""
+    # Missing uppercase
+    with pytest.raises(ValidationError, match="uppercase"):
+        UserCreate(username="valid_user", password="lowercase_only123!")
+
+    # Missing lowercase
+    with pytest.raises(ValidationError, match="lowercase"):
+        UserCreate(username="valid_user", password="UPPERCASE_ONLY123!")
+
+    # Missing digit
+    with pytest.raises(ValidationError, match="digit"):
+        UserCreate(username="valid_user", password="NoDigitsHereAtAll!")
+
+    # Missing special character
+    with pytest.raises(ValidationError, match="special character"):
+        UserCreate(username="valid_user", password="NoSpecialChar12345")
+
+    # Length < 12
+    with pytest.raises(ValidationError):
+        UserCreate(username="valid_user", password="Short1!")
+
+    # Valid password passes
+    valid_user = UserCreate(username="valid_user", password="StrongValidPassword123!")
+    assert valid_user.password == "StrongValidPassword123!"
+

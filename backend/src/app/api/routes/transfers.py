@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_active_user, get_db
 from app.models.user import User
 from app.schemas.transfer import TransferListResponse, TransferRead
+from app.security.rate_limit import upload_limiter
 from app.services.transfer_service import TransferService
 
 router = APIRouter(prefix="/transfers", tags=["Transfers"])
@@ -34,6 +35,8 @@ async def create_transfer(
     """Initiate a secure file transfer: compute SHA-256, encrypt with AES-256-GCM,
     wrap key, and pack envelope.
     """
+    upload_limiter.assert_allowed(str(current_user.id))
+
     service = TransferService()
     transfer = await service.create_and_process_upload(
         db=db,

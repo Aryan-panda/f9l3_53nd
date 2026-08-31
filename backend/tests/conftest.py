@@ -1,6 +1,7 @@
 import os
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
@@ -21,16 +22,18 @@ from app.core.database import create_all_tables, drop_all_tables
 from app.main import app
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRole, UserStatus
-from app.security.rate_limit import login_limiter
+from app.security.rate_limit import login_limiter, upload_limiter
 from app.services.user_service import UserService
 from app.transfer.replay import transfer_replay_detector
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def reset_security_state() -> None:
     """Reset in-memory rate limiters and replay detectors before each test."""
     login_limiter.reset()
+    upload_limiter.reset()
     transfer_replay_detector.reset()
+
 
 
 @pytest_asyncio.fixture(scope="session")

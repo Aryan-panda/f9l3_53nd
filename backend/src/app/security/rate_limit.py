@@ -65,3 +65,7 @@ class InMemoryRateLimiter:
 
 # Default login limiter: 5 attempts per minute sustained, burst of 10
 login_limiter = InMemoryRateLimiter(rate=5.0 / 60.0, capacity=10.0)
+
+# Default upload limiter: 10 uploads per minute sustained, burst of 15
+upload_limiter = InMemoryRateLimiter(rate=10.0 / 60.0, capacity=15.0)
+
